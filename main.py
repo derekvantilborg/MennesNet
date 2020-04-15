@@ -39,3 +39,6 @@ image = io.imread('Images/golfcourse/golfcourse60.tif')
 f = plt.figure()
 plt.imshow(image)
 plt.show()
+
+
+#test
