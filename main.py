@@ -1,12 +1,11 @@
 from mxnet import gluon, np, npx
 npx.set_np()
-import os
-import shutil
+import os, shutil, zipfile
 import zipfile
 from git import Repo
-import zipfile
 import skimage.io as io
 import matplotlib.pyplot as plt
+import pandas as pd
 
 if not os.path.isdir('ucmdata'):
     print('Downloading ucmdata ...')
@@ -31,7 +30,7 @@ for name in ['/UCMImages', '/README.md', '/UCMerced_LandUse.zip']:
             os.remove(file)
         print('Removed: ' + file)
 
-UCM_images_path = "Images/"
+UCM_images_path = "/Images/"
 Multilabels_path = "LandUse_Multilabeled.txt"
 
 # # plotting a test image
@@ -46,47 +45,58 @@ Multilabels_path = "LandUse_Multilabeled.txt"
 # split_imgs["val"] = [28,30,32,34,37]
 # split_imgs["test"] = [2,4,6,8,10,12,14,16,20,22,24,27,29,31,33,35,38]
 #
-# class VaihingenDataset(gluon.data.Dataset):
-#     def __init__(self, img_folder, GT_folder, split, patch_size=512):
-#         super(VaihingenDataset, self).__init__()
-#         self.rgb_mean = rnp.array([0.485, 0.456, 0.406])
-#         self.rgb_std = rnp.array([0.229, 0.224, 0.225])
-#
-#         self.imgs = []
-#         self.GTs = []
-#
-#         #Amount of overlap when defining the patches. If your dataset is big enough,
-#         #you might not need to have overlaps
-#         overlap = patch_size // 2
-#
-#         for img_index in split_imgs[split]:
-#           print("Working on image " + str(img_index))
-#           #Load the tile and the corresponding ground truth.
-#           img = io.imread(os.path.join(img_folder, "top_mosaic_09cm_area" + str(img_index) + '.tif')) / 255
-#           img = (img.astype('float32')  - rnp.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / rnp.tile(self.rgb_std, (img.shape[0], img.shape[1], 1))
-#           GT = io.imread(os.path.join(GT_folder, "top_mosaic_09cm_area" + str(img_index) + '.tif'))
-#
-#           #Crop into patches, following a regularly sampled grid.
-#           #i and j are defined as the center of the patch to crop.
-#           for i in np.arange(patch_size//2, img.shape[0] - patch_size // 2, overlap):
-#             for j in np.arange(patch_size//2, img.shape[1] - patch_size // 2, overlap):
-#               #Crop the image and the ground truth into patch around (i,j) and save
-#               #them in self.imgs and self.GTs arrays.
-#               #For the image, note that we are taking the three channels (using ":")
-#               #for the 3rd dimension, and we do the conversion to tensor.
-#               i, j = int(i), int(j)
-#               self.imgs.append(img[i - patch_size//2:i + patch_size // 2, j - patch_size // 2:j + patch_size // 2,:])
-#               self.GTs.append(GT[i - patch_size//2:i + patch_size // 2, j - patch_size // 2:j + patch_size // 2])
-#
-#         print(f"Number of patches in dataset {split}: {len(self.imgs)}")
-#
-#
-#     def __getitem__(self, idx):
-#         #__getitem__ asks for the sample number idx. Since we pre-loaded the images
-#         #and the ground truths, we just have to return the corresponding sample.
-#         img = self.imgs[idx].transpose(2, 0, 1)
-#         GT = self.GTs[idx]
-#         return img, GT
-#
-#     def __len__(self):
-#         return len(self.imgs)
+
+##
+class CustomDataset(gluon.data.Dataset):
+    def __init__(self, img_folder, label_file):
+        super(CustomDataset, self).__init__()
+        self.rgb_mean = np.array([0.485, 0.456, 0.406])
+        self.rgb_std = np.array([0.229, 0.224, 0.225])
+
+        img_folders = os.listdir(cwd + img_folder)
+        image_list = [os.listdir(cwd + img_folder + folder) for folder in img_folders]
+        self.imgs = sum(image_list, [])
+        self.imgs.sort()
+
+        label_df = pd.read_csv(label_file, sep="\t")
+        print(label_df['IMAGE\LABEL'])
+        # for val in self.imgs:
+        #     name = val.split('.')[0]
+        #     if not (name in label_df['IMAGE\LABEL']):
+        #         print('NOT FOUND: ' + name)
+
+        # for img_index in split_imgs[split]:
+        #   print("Working on image " + str(img_index))
+        #   #Load the tile and the corresponding ground truth.
+        #   img = io.imread(os.path.join(img_folder, "top_mosaic_09cm_area" + str(img_index) + '.tif')) / 255
+        #   img = (img.astype('float32')  - rnp.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / rnp.tile(self.rgb_std, (img.shape[0], img.shape[1], 1))
+        #   GT = io.imread(os.path.join(GT_folder, "top_mosaic_09cm_area" + str(img_index) + '.tif'))
+        #
+        #   #Crop into patches, following a regularly sampled grid.
+        #   #i and j are defined as the center of the patch to crop.
+        #   for i in np.arange(patch_size//2, img.shape[0] - patch_size // 2, overlap):
+        #     for j in np.arange(patch_size//2, img.shape[1] - patch_size // 2, overlap):
+        #       #Crop the image and the ground truth into patch around (i,j) and save
+        #       #them in self.imgs and self.GTs arrays.
+        #       #For the image, note that we are taking the three channels (using ":")
+        #       #for the 3rd dimension, and we do the conversion to tensor.
+        #       i, j = int(i), int(j)
+        #       self.imgs.append(img[i - patch_size//2:i + patch_size // 2, j - patch_size // 2:j + patch_size // 2,:])
+        #       self.GTs.append(GT[i - patch_size//2:i + patch_size // 2, j - patch_size // 2:j + patch_size // 2])
+        #
+        # print(f"Number of patches in dataset {split}: {len(self.imgs)}")
+
+
+    def __getitem__(self, idx):
+        #__getitem__ asks for the sample number idx. Since we pre-loaded the images
+        #and the ground truths, we just have to return the corresponding sample.
+        img = self.imgs[idx].transpose(2, 0, 1)
+        GT = self.GTs[idx]
+        return img, GT
+
+    def __len__(self):
+        return len(self.imgs)
+
+
+obj = CustomDataset(UCM_images_path, Multilabels_path)
+##
