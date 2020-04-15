@@ -1,5 +1,6 @@
-/Images
+Images
 *.tif
 *.tiff
 /.idea
 /ucmdata
+venv/
