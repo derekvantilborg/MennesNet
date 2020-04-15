@@ -21,7 +21,7 @@ if not os.path.isdir('UCMImages'):
 
 
 for name in ['UCMImages', 'README.md', 'UCMerced_LandUse.zip']:
-    file = cwd + '/ucmdata/' + name
+    file = cwd + name
     if os.path.exists(file):
         if os.path.isdir(file):
             shutil.rmtree(file)
@@ -31,15 +31,9 @@ for name in ['UCMImages', 'README.md', 'UCMerced_LandUse.zip']:
 
 UCM_images_path = "Images/"
 Multilabels_path = "LandUse_Multilabeled.txt"
-#
-# with open(UCM_images_path + Multilabels_path) as f:
-#   print(f)
-#
-#
-# # show image
-# with open("LandUse_Multilabeled.txt") as f: # The with keyword automatically closes the file when you are done
-#   print(f.read())
-#
+
+
+
 # # globals()
 # # os.listdir('Images/golfcourse')
 #
