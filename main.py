@@ -5,6 +5,8 @@ import shutil
 import zipfile
 from git import Repo
 import zipfile
+import skimage.io as io
+import matplotlib.pyplot as plt
 
 if not os.path.isdir('ucmdata'):
     print('Downloading ucmdata ...')
@@ -33,15 +35,8 @@ UCM_images_path = "Images/"
 Multilabels_path = "LandUse_Multilabeled.txt"
 
 
-
-# # globals()
-# # os.listdir('Images/golfcourse')
-#
-# import skimage.io as io
-# import matplotlib.pyplot as plt
-#
-# image = io.imread('Images/golfcourse/golfcourse60.tif')
-#
-# f = plt.figure()
-# plt.imshow(image)
-# plt.show()
+# plotting a test image
+image = io.imread('Images/golfcourse/golfcourse60.tif')
+f = plt.figure()
+plt.imshow(image)
+plt.show()
