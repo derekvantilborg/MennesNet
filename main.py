@@ -1,5 +1,6 @@
 ##
-from mxnet import gluon, npx, np
+from mxnet import gluon, npx
+import numpy as np
 npx.set_np()
 import os, shutil, zipfile
 from git import Repo
@@ -90,7 +91,6 @@ class Dataset_Multilabel(gluon.data.Dataset):
             for file in os.listdir(os.path.join(img_folder, sub_folder)):
                 img = io.imread(os.path.join(img_folder, sub_folder, file)) / 255
                 # normalize the image with mean and stdev
-                print(type(img))
                 img_norm = (img.astype('float32') - np.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / np.tile(self.rgb_std, (img.shape[0], img.shape[1], 1))
                 self.imgs.append(img_norm)
                 label = label_df.loc[label_df['IMAGE\LABEL'] == name.split('.')[0]].values.flatten().tolist()[1:]
