@@ -10,14 +10,14 @@ if not os.path.isdir('ucmdata'):
     print('Downloading ucmdata ...')
     Repo.clone_from('https://git.wur.nl/lobry001/ucmdata.git', 'ucmdata')
 
-cwd = os.getcwd()
 os.chdir('ucmdata')
+cwd = os.getcwd()
 
 if not os.path.isdir('UCMImages'):
     print('Extracting ucmdata ...')
     with zipfile.ZipFile('UCMerced_LandUse.zip', 'r') as zip_ref:
         zip_ref.extractall('UCMImages')
-    os.rename(cwd + '/ucmdata/UCMImages/UCMerced_LandUse/Images', cwd + '/Images')
+    os.rename(cwd + '/UCMImages/UCMerced_LandUse/Images', cwd + '/Images')
 
 
 for name in ['UCMImages', 'README.md', 'UCMerced_LandUse.zip']:
@@ -29,8 +29,8 @@ for name in ['UCMImages', 'README.md', 'UCMerced_LandUse.zip']:
             os.remove(file)
         print('Removed: ' + file)
 
-# UCM_images_path = "Images/"
-# Multilabels_path = "LandUse_Multilabeled.txt"
+UCM_images_path = "Images/"
+Multilabels_path = "LandUse_Multilabeled.txt"
 #
 # with open(UCM_images_path + Multilabels_path) as f:
 #   print(f)
