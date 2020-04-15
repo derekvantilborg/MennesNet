@@ -1,6 +1,7 @@
 from mxnet import gluon, np, npx
 npx.set_np()
 import os
+import shutil
 import zipfile
 from git import Repo
 import zipfile
@@ -16,13 +17,18 @@ if not os.path.isdir('UCMImages'):
     print('Extracting ucmdata ...')
     with zipfile.ZipFile('UCMerced_LandUse.zip', 'r') as zip_ref:
         zip_ref.extractall('UCMImages')
+    os.rename(cwd + '/ucmdata/UCMImages/UCMerced_LandUse/Images', cwd + '/Images')
 
-# os.rename(cwd + '/ucmdata/UCMImages/UCMerced_LandUse/Images', cwd)
 
-# !mv UCMImages/UCMerced_LandUse/Images .
-# !rm -rf UCMImages README.md  UCMerced_LandUse.zip
-# !ls
-#
+for name in ['UCMImages', 'README.md', 'UCMerced_LandUse.zip']:
+    file = cwd + '/ucmdata/' + name
+    if os.path.exists(file):
+        if os.path.isdir(file):
+            shutil.rmtree(file)
+        else:
+            os.remove(file)
+        print('Removed: ' + file)
+
 # UCM_images_path = "Images/"
 # Multilabels_path = "LandUse_Multilabeled.txt"
 #
