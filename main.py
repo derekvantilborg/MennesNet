@@ -1,8 +1,8 @@
 ## =============== PERFORMING IMPORTS ==============
 import mxnet
 from mxnet import gluon, npx
-import numpy as np
 npx.set_np()
+import numpy as rnp
 import os, shutil, zipfile
 from git import Repo
 import skimage.io as io
@@ -67,21 +67,21 @@ def split_filenames(parent_dir, split_ratio = 0.8):
 
 ## ============== DEFINING THE SINGLELABEL DATASET CLASS ===================
 class Dataset_Singlelabel(gluon.data.Dataset):
-    def __init__(self, img_folder):
+    def __init__(self, file_paths):
         super(Dataset_Singlelabel, self).__init__()
-        self.rgb_mean = np.array([0.485, 0.456, 0.406])
-        self.rgb_std = np.array([0.229, 0.224, 0.225])
+        self.rgb_mean = rnp.array([0.485, 0.456, 0.406])
+        self.rgb_std = rnp.array([0.229, 0.224, 0.225])
         self.imgs = []
         self.labels = []
         # Create a list of all unqie classes in alphabetical order
         unique_classes = list(set([''.join(x for x in i if x.isalpha()) for i in
-                                   [os.path.basename(i).split('.')[0] for i in img_folder]]))
+                                   [os.path.basename(i).split('.')[0] for i in file_paths]]))
         unique_classes.sort()
         # Define self.images
-        for file in img_folder:
+        for file in file_paths:
             img = io.imread(file) / 255
             # normalize the image with mean and stdev
-            img_norm = (img.astype('float32') - np.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / np.tile(
+            img_norm = (img.astype('float32') - rnp.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / rnp.tile(
                 self.rgb_std, (img.shape[0], img.shape[1], 1))
             self.imgs.append(img_norm)
             # Find the label from pathname and index it in the list of unique labels --> add to self.labels
@@ -129,8 +129,8 @@ for X_batch, y_batch in data_loader:
 class Dataset_Multilabel(gluon.data.Dataset):
     def __init__(self, set_paths,label_file):
         super(Dataset_Multilabel, self).__init__()
-        self.rgb_mean = np.array([0.485, 0.456, 0.406])
-        self.rgb_std = np.array([0.229, 0.224, 0.225])
+        self.rgb_mean = rnp.array([0.485, 0.456, 0.406])
+        self.rgb_std = rnp.array([0.229, 0.224, 0.225])
         self.imgs = []
         self.labels = []
 
@@ -141,7 +141,7 @@ class Dataset_Multilabel(gluon.data.Dataset):
         for file in set_paths:
             img = io.imread(file) / 255
             # normalize the image with mean and stdev
-            img_norm = (img.astype('float32') - np.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / np.tile(self.rgb_std, (img.shape[0], img.shape[1], 1))
+            img_norm = (img.astype('float32') - rnp.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / rnp.tile(self.rgb_std, (img.shape[0], img.shape[1], 1))
             self.imgs.append(img_norm)
             label = label_df.loc[label_df['IMAGE\LABEL'] == os.path.basename(file).split('.')[0]].values.flatten().tolist()[1:]
             self.labels.append(label)
