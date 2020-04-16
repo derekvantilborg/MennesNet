@@ -108,14 +108,14 @@ class Dataset_Multilabel(gluon.data.Dataset):
         label_df = pd.read_csv(label_file, sep="\t")
 
         # Define self.images
-        for sub_folder in os.listdir(img_folder):
+        for sub_folder in [f for f in os.listdir(img_folder) if not f.startswith('.')]:
             print("Processing {} images".format(sub_folder))
             for file in os.listdir(os.path.join(img_folder, sub_folder)):
                 img = io.imread(os.path.join(img_folder, sub_folder, file)) / 255
                 # normalize the image with mean and stdev
                 img_norm = (img.astype('float32') - np.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / np.tile(self.rgb_std, (img.shape[0], img.shape[1], 1))
                 self.imgs.append(img_norm)
-                label = label_df.loc[label_df['IMAGE\LABEL'] == name.split('.')[0]].values.flatten().tolist()[1:]
+                label = label_df.loc[label_df['IMAGE\LABEL'] == file.split('.')[0]].values.flatten().tolist()[1:]
                 self.labels.append(label)
 
 
