@@ -8,6 +8,7 @@ from git import Repo
 import skimage.io as io
 import matplotlib.pyplot as plt
 import pandas as pd
+import random
 
 ## ============ LOADING THE DATA ===============
 
@@ -44,28 +45,50 @@ Multilabels_path = os.path.join(data_folder, "LandUse_Multilabeled.txt")
 # plt.imshow(image)
 # plt.show()
 
+## ============== Function to split data paths in train/test for data loading =========================
+
+def split_filenames(parent_dir, split_ratio = 0.8):
+    ''' randomly split all filenames in a parent directory into a test and a train set
+    parent_dir = pathname of the parent directory
+    split_ratio = train/test ratio, default of 0.8 will give 80% train, 20% test
+    '''
+    # walk through the parent dir and find all file paths that are not hidden files
+    listOfFiles = list()
+    for root, directories, filenames in os.walk(parent_dir):
+        for filename in filenames:
+            if not filename.startswith('.'):
+                listOfFiles += [os.path.join(root, filename)]
+    # shuffle list of file paths and split according to the split ratio
+    random.shuffle(listOfFiles)
+    train_file_names = listOfFiles[:round(len(listOfFiles) * split_ratio)]
+    test_file_names = listOfFiles[round(len(listOfFiles)*split_ratio):]
+    # return a tuple of train and test file paths
+    return((train_file_names,test_file_names))
+
 ## ============== DEFINING THE SINGLELABEL DATASET CLASS ===================
 class Dataset_Singlelabel(gluon.data.Dataset):
-    def __init__(self, img_folder, n_classes = 21):
+    def __init__(self, img_folder):
         super(Dataset_Singlelabel, self).__init__()
         self.rgb_mean = np.array([0.485, 0.456, 0.406])
         self.rgb_std = np.array([0.229, 0.224, 0.225])
         self.imgs = []
         self.labels = []
-
+        # Create a list of all unqie classes in alphabetical order
+        unique_classes = list(set([''.join(x for x in i if x.isalpha()) for i in
+                                   [os.path.basename(i).split('.')[0] for i in img_folder]]))
+        unique_classes.sort()
         # Define self.images
-        for i, sub_folder in enumerate([f for f in os.listdir(img_folder) if not f.startswith('.')]):
-            print("Processing {} images".format(sub_folder))
-            for file in os.listdir(os.path.join(img_folder, sub_folder)):
-                img = io.imread(os.path.join(img_folder, sub_folder, file)) / 255
-                # normalize the image with mean and stdev
-                img_norm = (img.astype('float32') - np.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / np.tile(
-                    self.rgb_std, (img.shape[0], img.shape[1], 1))
-                self.imgs.append(img_norm)
-                self.labels.append(i) # append class number to labels
+        for file in img_folder:
+            img = io.imread(file) / 255
+            # normalize the image with mean and stdev
+            img_norm = (img.astype('float32') - np.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / np.tile(
+                self.rgb_std, (img.shape[0], img.shape[1], 1))
+            self.imgs.append(img_norm)
+            # Find the label from pathname and index it in the list of unique labels --> add to self.labels
+            lab = ''.join(i for i in os.path.basename(file).split('.')[0] if not i.isdigit())
+            self.labels.append(unique_classes.index(lab)) # append class number to labels
         #one-hot encoding of labels
-        self.labels = mxnet.ndarray.one_hot(mxnet.nd.array(self.labels), n_classes)
-        print(self.labels)
+        self.labels = mxnet.ndarray.one_hot(mxnet.nd.array(self.labels), len(unique_classes))
 
     def __getitem__(self, idx):
         #__getitem__ asks for the sample number idx. Since we pre-loaded the images
@@ -76,6 +99,12 @@ class Dataset_Singlelabel(gluon.data.Dataset):
 
     def __len__(self):
         return len(self.imgs)
+
+# Create a train and test dataset
+path_splits = split_filenames(UCM_images_path, 0.8)
+Dataset_Single_train = Dataset_Singlelabel(path_splits[0])
+Dataset_Single_test = Dataset_Singlelabel(path_splits[1])
+
 
 ## =============== DEFINING DATA LOADERS ==================
 
@@ -95,10 +124,10 @@ for X_batch, y_batch in data_loader:
     print("X_batch has shape {}, and y_batch has shape {}".format(X_batch.shape, y_batch.shape))
 
 
-##
-# ============== DEFINING THE MULTILABEL DATASET CLASS ===================
+## ============== DEFINING THE MULTILABEL DATASET CLASS ===================
+
 class Dataset_Multilabel(gluon.data.Dataset):
-    def __init__(self, img_folder, label_file):
+    def __init__(self, set_paths,label_file):
         super(Dataset_Multilabel, self).__init__()
         self.rgb_mean = np.array([0.485, 0.456, 0.406])
         self.rgb_std = np.array([0.229, 0.224, 0.225])
@@ -109,16 +138,13 @@ class Dataset_Multilabel(gluon.data.Dataset):
         label_df = pd.read_csv(label_file, sep="\t")
 
         # Define self.images
-        for sub_folder in [f for f in os.listdir(img_folder) if not f.startswith('.')]:
-            print("Processing {} images".format(sub_folder))
-            for file in os.listdir(os.path.join(img_folder, sub_folder)):
-                img = io.imread(os.path.join(img_folder, sub_folder, file)) / 255
-                # normalize the image with mean and stdev
-                img_norm = (img.astype('float32') - np.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / np.tile(self.rgb_std, (img.shape[0], img.shape[1], 1))
-                self.imgs.append(img_norm)
-                label = label_df.loc[label_df['IMAGE\LABEL'] == file.split('.')[0]].values.flatten().tolist()[1:]
-                self.labels.append(label)
-
+        for file in set_paths:
+            img = io.imread(file) / 255
+            # normalize the image with mean and stdev
+            img_norm = (img.astype('float32') - np.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / np.tile(self.rgb_std, (img.shape[0], img.shape[1], 1))
+            self.imgs.append(img_norm)
+            label = label_df.loc[label_df['IMAGE\LABEL'] == os.path.basename(file).split('.')[0]].values.flatten().tolist()[1:]
+            self.labels.append(label)
 
     def __getitem__(self, idx):
         #__getitem__ asks for the sample number idx. Since we pre-loaded the images
@@ -130,5 +156,9 @@ class Dataset_Multilabel(gluon.data.Dataset):
     def __len__(self):
         return len(self.imgs)
 
-multilabel = Dataset_Multilabel(UCM_images_path, Multilabels_path)
+# Create a multilabel train and test dataset
+path_splits = split_filenames(UCM_images_path, 0.8)
+multilabel_train = Dataset_Multilabel(path_splits[0], Multilabels_path)
+multilabel_test = Dataset_Multilabel(path_splits[1], Multilabels_path)
+
 ##
