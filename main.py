@@ -72,13 +72,13 @@ class Dataset_Singlelabel(gluon.data.Dataset):
         self.rgb_mean = rnp.array([0.485, 0.456, 0.406])
         self.rgb_std = rnp.array([0.229, 0.224, 0.225])
         self.imgs = []
-        self.labels = []
+        self.labels = rnp.zeros((2100, 21))
         # Create a list of all unqie classes in alphabetical order
         unique_classes = list(set([''.join(x for x in i if x.isalpha()) for i in
                                    [os.path.basename(i).split('.')[0] for i in file_paths]]))
         unique_classes.sort()
         # Define self.images
-        for file in file_paths:
+        for i, file in enumerate(file_paths):
             img = io.imread(file) / 255
             # normalize the image with mean and stdev
             img_norm = (img.astype('float32') - rnp.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / rnp.tile(
@@ -86,9 +86,7 @@ class Dataset_Singlelabel(gluon.data.Dataset):
             self.imgs.append(img_norm)
             # Find the label from pathname and index it in the list of unique labels --> add to self.labels
             lab = ''.join(i for i in os.path.basename(file).split('.')[0] if not i.isdigit())
-            self.labels.append(unique_classes.index(lab)) # append class number to labels
-        #one-hot encoding of labels
-        self.labels = mxnet.ndarray.one_hot(mxnet.nd.array(self.labels), len(unique_classes))
+            self.labels[i, unique_classes.index(lab)]  # append class number to labels
 
     def __getitem__(self, idx):
         #__getitem__ asks for the sample number idx. Since we pre-loaded the images
