@@ -54,7 +54,7 @@ class Dataset_Singlelabel(gluon.data.Dataset):
         self.labels = []
 
         # Define self.images
-        for sub_folder in os.listdir(img_folder):
+        for i, sub_folder in enumerate([f for f in os.listdir(img_folder) if not f.startswith('.')]):
             print("Processing {} images".format(sub_folder))
             for file in os.listdir(os.path.join(img_folder, sub_folder)):
                 img = io.imread(os.path.join(img_folder, sub_folder, file)) / 255
@@ -62,9 +62,10 @@ class Dataset_Singlelabel(gluon.data.Dataset):
                 img_norm = (img.astype('float32') - np.tile(self.rgb_mean, (img.shape[0], img.shape[1], 1))) / np.tile(
                     self.rgb_std, (img.shape[0], img.shape[1], 1))
                 self.imgs.append(img_norm)
-                self.labels.append(file.split('.')[0][:-2])
+                self.labels.append(i) # append class number to labels
         #one-hot encoding of labels
-        self.labels = mxnet.ndarray.one_hot(self.labels, n_classes)
+        self.labels = mxnet.ndarray.one_hot(mxnet.nd.array(self.labels), n_classes)
+        print(self.labels)
 
     def __getitem__(self, idx):
         #__getitem__ asks for the sample number idx. Since we pre-loaded the images
@@ -78,7 +79,7 @@ class Dataset_Singlelabel(gluon.data.Dataset):
 
 ## =============== DEFINING DATA LOADERS ==================
 
-Dataset_Single = Dataset_Singlelabel(UCM_images_path, Multilabels_path)
+Dataset_Single = Dataset_Singlelabel(UCM_images_path)
 
 from multiprocessing import cpu_count
 CPU_COUNT = cpu_count()
