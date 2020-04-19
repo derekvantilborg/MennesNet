@@ -1,8 +1,7 @@
 ## =============== PERFORMING IMPORTS ==============
 import mxnet
-from mxnet import gluon, npx
-npx.set_np()
-import numpy as rnp
+from mxnet import gluon, npx, np, autograd
+from mxnet.gluon import nn
 import os, shutil, zipfile
 from git import Repo
 import skimage.io as io
@@ -10,6 +9,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import random
 import PIL.Image
+import matplotlib
+
+# ! pip install d2l -q
+import d2l
 
 ## ============ LOADING THE DATA ===============
 
@@ -192,3 +195,82 @@ DataLoader_Single_test = gluon.data.DataLoader(Dataset_Single_test,
 
 # for X_batch, y_batch in DataLoader_Single_test:
 #     print("X_batch has shape {}, and y_batch has shape {}".format(X_batch.shape, y_batch.shape))
+
+## =============== DEFINING THE NETWORK ============================
+
+# Define the network architecture
+net = nn.Sequential()
+net.add(nn.Conv2D(channels=6, kernel_size=5, padding=2, activation='sigmoid'),
+        nn.AvgPool2D(pool_size=2, strides=2),
+        nn.Conv2D(channels=16, kernel_size=5, activation='sigmoid'),
+        nn.AvgPool2D(pool_size=2, strides=2),
+        # Dense will transform the input of the shape (batch size, channel,
+        # height, width) into the input of the shape (batch size,
+        # channel * height * width) automatically by default
+        nn.Dense(120, activation='sigmoid'),
+        nn.Dense(84, activation='sigmoid'),
+        nn.Dense(21))
+
+# Test the network shapes
+X = mxnet.ndarray.random.uniform(shape=(5, 3, 256, 256))
+net.initialize()
+for layer in net:
+    X = layer(X)
+    print(layer.name, 'output shape:\t', X.shape)
+
+## =============== TRAINING THE NET ====================
+
+num_epochs, lr, wd, ctx = 10, 0.1, 1e-3, d2l.try_all_gpus()
+loss = gluon.loss.SoftmaxCrossEntropyLoss()
+net.collect_params().reset_ctx(ctx)
+trainer = gluon.Trainer(net.collect_params(), 'sgd',
+                        {'learning_rate': lr, 'wd': wd})
+
+num_batches, timer = len(DataLoader_Single_train), d2l.Timer()
+animator = d2l.Animator(xlabel='epoch', xlim=[0, num_epochs], ylim=[0, 1],
+                        legend=['train loss', 'train acc', 'val loss', 'val acc'])
+
+ctx = d2l.try_all_gpus()
+for epoch in range(num_epochs):
+    # Training loop
+    # Store training_loss, training_accuracy, num_examples, num_features
+    metric = d2l.Accumulator(4)
+    for i, (Xs_in, ys_in) in enumerate(DataLoader_Single_train):
+        print("Training iteration: " + str(i))
+        timer.start()
+        Xs = gluon.utils.split_and_load(Xs_in.astype("float32"), ctx)
+        ys = gluon.utils.split_and_load(ys_in.astype("float32"), ctx)
+        with autograd.record():
+            pys = [net(X.transpose(axes=(0, 3, 1, 2))) for X in Xs]
+            ls = [loss(py, y) for py, y in zip(pys, ys)]
+        for l in ls:
+            l.backward()
+        trainer.step(ys_in.shape[0])
+        train_loss_sum = sum([float(l.sum().asnumpy()[0]) for l in ls])
+        train_acc_sum = sum(d2l.accuracy(py.asnumpy(), y.asnumpy()) for py, y in zip(pys, ys))
+        l, acc = train_loss_sum, train_acc_sum
+        metric.add(l, acc, ys_in.shape[0], ys_in.size)
+        timer.stop()
+        if (i + 1) % (num_batches // 5) == 0:
+            animator.add(epoch + i / num_batches,
+                         (metric[0] / metric[2], metric[1] / metric[3], None, None))
+
+    # val_acc = d2l.evaluate_accuracy_gpus(net, val_iter, split_f)
+    metric_val = d2l.Accumulator(2)  # num_corrected_examples, num_examples
+    for i, (Xs_in, ys_in) in enumerate(DataLoader_Single_test):
+        Xs = gluon.utils.split_and_load(Xs_in.astype("float32"), ctx)
+        ys = gluon.utils.split_and_load(ys_in.astype("float32"), ctx)
+        pys = [net(X) for X in Xs]
+        ls = [loss(py, y) for py, y in zip(pys, ys)]
+        val_loss_sum = sum([float(l.sum().asnumpy()[0]) for l in ls])
+
+        OA_val = np.sum(np.argmax(pys[0].asnumpy(), axis=1) == ys[0].asnumpy()).astype("float32") / np.prod(
+            ys[0].shape)
+        metric_val.add(OA_val, len(ys))
+
+    val_acc = OA_val
+    animator.add(epoch + 1, (None, None, val_loss_sum / ys_in.shape[0], val_acc))
+print('loss %.3f, train acc %.3f, val acc %.3f' % (
+    metric[0] / metric[2], metric[1] / metric[3], val_acc))
+print('%.1f examples/sec on %s' % (
+    metric[2] * num_epochs / timer.sum(), d2l.try_all_gpus()))
