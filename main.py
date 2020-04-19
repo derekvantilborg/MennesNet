@@ -121,28 +121,6 @@ class Dataset_Singlelabel(gluon.data.Dataset):
     def __len__(self):
         return len(self.imgs)
 
-# Create a train and test dataset
-path_splits = split_filenames(UCM_images_path, 0.8)
-Dataset_Single_train = Dataset_Singlelabel(path_splits[0])
-Dataset_Single_test = Dataset_Singlelabel(path_splits[1])
-
-
-## =============== DEFINING DATA LOADERS ==================
-
-from multiprocessing import cpu_count
-CPU_COUNT = cpu_count()
-print("Number of available CPUs: " + str(CPU_COUNT))
-
-data_loader = gluon.data.DataLoader(Dataset_Single_train,
-                                    batch_size=5,
-                                    shuffle=True,
-                                    last_batch='discard',
-                                    num_workers=1)
-
-for X_batch, y_batch in data_loader:
-    print("X_batch has shape {}, and y_batch has shape {}".format(X_batch.shape, y_batch.shape))
-
-
 ## ============== DEFINING THE MULTILABEL DATASET CLASS ===================
 
 class Dataset_Multilabel(gluon.data.Dataset):
@@ -175,12 +153,7 @@ class Dataset_Multilabel(gluon.data.Dataset):
     def __len__(self):
         return len(self.imgs)
 
-# Create a multilabel train and test dataset
-path_splits = split_filenames(UCM_images_path, 0.8)
-multilabel_train = Dataset_Multilabel(path_splits[0], Multilabels_path)
-multilabel_test = Dataset_Multilabel(path_splits[1], Multilabels_path)
-
-##
+## ============ DEFINE TRANSFORMATIONS ========================
 
 def aug_transform(data, label):
     data = data.astype('float32') / 255
@@ -196,9 +169,26 @@ def plot_mx_array(array):
     assert array.shape[2] == 3, "RGB Channel should be last"
     plt.imshow((array.clip(0, 255) / 255).asnumpy())
 
+## =============== DEFINING DATA SETS AND LOADERS ==================
 
-UCM_img_test_path = os.path.join(data_folder, "img_test/")
+# from multiprocessing import cpu_count
+# CPU_COUNT = cpu_count()
+# print("Number of available CPUs: " + str(CPU_COUNT))
 
-dummy_dataset = gluon.data.vision.datasets.ImageFolderDataset(UCM_img_test_path, transform=aug_transform)
+train_folder = 'ucmdata/train'
+test_folder = 'ucmdata/test'
 
-plot_mx_array(dummy_dataset[0][0]*255)
+Dataset_Single_train = gluon.data.vision.datasets.ImageFolderDataset(train_folder, transform=aug_transform)
+Dataset_Single_test = gluon.data.vision.datasets.ImageFolderDataset(test_folder, transform=aug_transform)
+
+DataLoader_Single_train = gluon.data.DataLoader(Dataset_Single_train,
+                                    batch_size=5,
+                                    shuffle=True,
+                                    last_batch='discard')
+DataLoader_Single_test = gluon.data.DataLoader(Dataset_Single_test,
+                                    batch_size=5,
+                                    shuffle=True,
+                                    last_batch='discard')
+
+# for X_batch, y_batch in DataLoader_Single_test:
+#     print("X_batch has shape {}, and y_batch has shape {}".format(X_batch.shape, y_batch.shape))
