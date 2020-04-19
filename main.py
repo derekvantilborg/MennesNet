@@ -9,6 +9,7 @@ import skimage.io as io
 import matplotlib.pyplot as plt
 import pandas as pd
 import random
+import PIL.Image
 
 ## ============ LOADING THE DATA ===============
 
@@ -47,23 +48,45 @@ Multilabels_path = os.path.join(data_folder, "LandUse_Multilabeled.txt")
 
 ## ============== Function to split data paths in train/test for data loading =========================
 
-def split_filenames(parent_dir, split_ratio = 0.8):
-    ''' randomly split all filenames in a parent directory into a test and a train set
+def convert_and_split(parent_dir, split_ratio = 0.8):
+    ''' randomly split all filenames in a parent directory into a test and a train set AND copy them to their respective directories
     parent_dir = pathname of the parent directory
     split_ratio = train/test ratio, default of 0.8 will give 80% train, 20% test
     '''
     # walk through the parent dir and find all file paths that are not hidden files
     listOfFiles = list()
+    dirs = []
     for root, directories, filenames in os.walk(parent_dir):
+        if not dirs: # save a list of class directories
+            dirs = directories
         for filename in filenames:
             if not filename.startswith('.'):
-                listOfFiles += [os.path.join(root, filename)]
+                path = os.path.join(root, filename)
+                listOfFiles += [path]
+                if not path.endswith('.PNG'):
+                    im = PIL.Image.open(path)
+                    im.save(path.split('.')[0] + '.PNG', 'PNG', quality=100)
+                    os.remove(path)
+
     # shuffle list of file paths and split according to the split ratio
     random.shuffle(listOfFiles)
-    train_file_names = listOfFiles[:round(len(listOfFiles) * split_ratio)]
-    test_file_names = listOfFiles[round(len(listOfFiles)*split_ratio):]
-    # return a tuple of train and test file paths
-    return((train_file_names,test_file_names))
+
+    # create folder structure for test and train data
+    for mode in ['train', 'test']:
+        path = os.path.join('ucmdata', mode)
+        if not os.path.exists(path):
+            os.mkdir(path)
+            [os.mkdir(os.path.join(path, dir)) for dir in dirs]
+
+    for i, path in enumerate(listOfFiles):
+        mode = "train" if i < round(len(listOfFiles) * split_ratio) else "test"
+        file = os.path.split(path)[1]
+        file_dir = ''.join(filter(lambda x: x.isalpha(), file.split('.')[0]))
+        os.rename(path, os.path.join('ucmdata', mode, file_dir, file))
+
+    return
+
+convert_and_split(UCM_images_path)
 
 ## ============== DEFINING THE SINGLELABEL DATASET CLASS ===================
 class Dataset_Singlelabel(gluon.data.Dataset):
@@ -86,7 +109,7 @@ class Dataset_Singlelabel(gluon.data.Dataset):
             self.imgs.append(img_norm)
             # Find the label from pathname and index it in the list of unique labels --> add to self.labels
             lab = ''.join(i for i in os.path.basename(file).split('.')[0] if not i.isdigit())
-            self.labels[i, unique_classes.index(lab)]  # append class number to labels
+            self.labels[i, unique_classes.index(lab)] = 1  # append class number to labels
 
     def __getitem__(self, idx):
         #__getitem__ asks for the sample number idx. Since we pre-loaded the images
@@ -106,13 +129,11 @@ Dataset_Single_test = Dataset_Singlelabel(path_splits[1])
 
 ## =============== DEFINING DATA LOADERS ==================
 
-Dataset_Single = Dataset_Singlelabel(UCM_images_path)
-
 from multiprocessing import cpu_count
 CPU_COUNT = cpu_count()
 print("Number of available CPUs: " + str(CPU_COUNT))
 
-data_loader = gluon.data.DataLoader(Dataset_Single,
+data_loader = gluon.data.DataLoader(Dataset_Single_train,
                                     batch_size=5,
                                     shuffle=True,
                                     last_batch='discard',
