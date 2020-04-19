@@ -181,3 +181,24 @@ multilabel_train = Dataset_Multilabel(path_splits[0], Multilabels_path)
 multilabel_test = Dataset_Multilabel(path_splits[1], Multilabels_path)
 
 ##
+
+def aug_transform(data, label):
+    data = data.astype('float32') / 255
+    augs = gluon.data.vision.transforms.Compose([
+        gluon.data.vision.transforms.RandomFlipLeftRight()
+    ])
+    for aug in augs:
+        data = aug(data)
+    return data, label
+
+
+def plot_mx_array(array):
+    assert array.shape[2] == 3, "RGB Channel should be last"
+    plt.imshow((array.clip(0, 255) / 255).asnumpy())
+
+
+UCM_img_test_path = os.path.join(data_folder, "img_test/")
+
+dummy_dataset = gluon.data.vision.datasets.ImageFolderDataset(UCM_img_test_path, transform=aug_transform)
+
+plot_mx_array(dummy_dataset[0][0]*255)
