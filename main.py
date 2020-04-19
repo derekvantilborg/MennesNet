@@ -156,13 +156,26 @@ class Dataset_Multilabel(gluon.data.Dataset):
 ## ============ DEFINE TRANSFORMATIONS ========================
 
 def aug_transform(data, label):
+    '''Normalize and augmentate data using gluon's built in image augmentation functions'''
     data = data.astype('float32') / 255
+    # normalize
+    rgb_mean = (0.485, 0.456, 0.406)
+    rgb_std = (0.229, 0.224, 0.225)
+    normalize_aug = gluon.data.vision.transforms.Compose([gluon.data.vision.transforms.Normalize(rgb_mean, rgb_std)])
+    # Transpose image, normalize image, transpose back. All gluon augmentation functions are h*w*c exept normalize because mxnet sucks
+    data_norm = normalize_aug(data.transpose(2, 1, 0)).transpose((2, 1, 0))
+
+    # Image augmentation steps
     augs = gluon.data.vision.transforms.Compose([
-        gluon.data.vision.transforms.RandomFlipLeftRight()
+        gluon.data.vision.transforms.RandomFlipLeftRight(),
+        gluon.data.vision.transforms.RandomFlipTopBottom(),
+        gluon.data.vision.transforms.RandomColorJitter(
+            brightness=0.5, contrast=0.5, saturation=0.5)
     ])
+
     for aug in augs:
-        data = aug(data)
-    return data, label
+        data_norm = aug(data_norm)
+    return data_norm, label
 
 
 def plot_mx_array(array):
