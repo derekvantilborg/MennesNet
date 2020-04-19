@@ -65,11 +65,13 @@ def convert_and_split(parent_dir, split_ratio = 0.8):
         for filename in filenames:
             if not filename.startswith('.'):
                 path = os.path.join(root, filename)
-                listOfFiles += [path]
+
                 if not path.endswith('.PNG'):
                     im = PIL.Image.open(path)
                     im.save(path.split('.')[0] + '.PNG', 'PNG', quality=100)
                     os.remove(path)
+                    path = path.split('.')[0] + '.PNG'
+                listOfFiles += [path]
 
     # shuffle list of file paths and split according to the split ratio
     random.shuffle(listOfFiles)
